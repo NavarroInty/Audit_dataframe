@@ -1,0 +1,257 @@
+---
+title: "Audit des données"
+author: "Inty NAVARRO"
+date: "2024-10-29"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+# ===================================================================
+# ETAPE 1 : PREPARATION DE L'ENVIRONNEMENT DE TRAVAIL
+# ===================================================================
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+
+library(tidyverse)
+library(lubridate)
+library(readxl)
+library (dplyr)
+library (readr)
+library(openxlsx)
+library(here)
+```
+
+
+
+# ===================================================================
+# ETAPE 2 : AUDIT GENERAL DU TABLEAU DE DONNEES
+# ===================================================================
+
+## 1. Dataframe Developpement psychomoteur 
+
+```{r}
+dataframe <- read_excel(here("01_raw_data", "F.09.Developpement_psychomotV2.xlsx"))
+```
+
+## 2 : Visualisation du dataframe
+
+```{r}
+# Affiche les 6 premières lignes du dataframe pour avoir un aperçu rapide de la structure des données
+# Remplace 'dataframe' par le nom du tableau que tu veux examiner
+head(dataframe)
+```
+
+
+## 3 : Dimensions du tableau 
+
+```{r}
+# Récupère les dimensions (nombre de lignes et de colonnes) du dataframe
+# Remplace 'dataframe' par le nom du tableau que tu souhaites analyser
+dimensions <- dim(dataframe)
+
+# Affiche un message explicatif indiquant la taille du dataframe
+cat("Le dataframe contient", dimensions[1], "lignes et", dimensions[2], "colonnes.\n") # option 1 
+
+# Affiche directement les dimensions dans un format plus clair
+glue::glue("Le dataframe contient {nrow(dataframe)} lignes et {ncol(dataframe)} colonnes.") # option 2
+```
+
+## 4 : Noms des colonnes
+
+```{r}
+# Liste les noms de toutes les colonnes présentes dans le dataframe
+colnames(dataframe)
+```
+
+# ===================================================================
+# ETAPE 3 : VERIFICATION DE LA STRUCTURE DES DONNEES
+# ===================================================================
+
+## 1 : Structure du dataframe
+
+```{r}
+# Affiche la structure interne du dataframe :
+# - type de chaque colonne
+# - aperçu des premières valeurs
+# Remplace 'dataframe' par le nom du tableau à inspecter
+str(dataframe)
+```
+
+## 2 : Création d'un tableur des types de données
+
+```{r}
+# Création d'un tableau avec le nom des colonnes et leur type de données
+col_info <- data.frame(
+  Nom_colonne = colnames(dataframe),
+  Type_de_donnee = sapply(dataframe, function(x) class(x)[1])
+)
+
+# 1 Chemin réseau vers le serveur 
+#chemin_fichier <- "\\\\Chu\\pôle pédiatrie\\Programmation_PRADER-WILLI\\Base de données SPW\\10 - NOUVELLE BDD\\11 - Data management et analyse\\3_BDD_Registre_PWF\\PROLONGT\\2024_11_20\\script r_mardown et tableurs\\4_Trajectoire_nutritionnelle\\F_07_1_Type_de_donnees.xlsx"
+
+# 2 Chemin vers le dossier de sauvegarde 
+chemin_fichier <- "C:\\Users\\Type_de_donnees_dataframe.xlsx"
+
+write.xlsx(col_info, file = chemin_fichier)
+
+cat("Le fichier a été enregistré avec succès à l'emplacement :", chemin_fichier)
+
+```
+
+# ===================================================================
+# ETAPE 4 : DETECTION DES DONNNEES MANQUANTES
+# ===================================================================
+
+## 1 : Nombre total de valeurs manquantes dans tous le tableau de données
+
+```{r}
+
+cat("Le nombre total de données manquantes est :", sum(is.na(dataframe)))
+```
+
+##  2 : Nombre total de valeurs manquantes par colonnes
+
+```{r}
+colSums(is.na(dataframe))
+```
+
+# ===================================================================
+# ETAPE 5 : DETECTION DES DOUBLONS 
+# ===================================================================
+
+## 1 : Vérification des doublons dans les lignes
+
+```{r}
+# Vérification des lignes entièrement dupliquées
+lignes_dupliquees <- dataframe[duplicated(dataframe), ]
+
+# Condition pour afficher un message en fonction du résultat
+if (nrow(lignes_dupliquees) > 0) {
+  cat("Il y a", nrow(lignes_dupliquees), "lignes entièrement dupliquées. Elles sont affichées ci-dessous :\n")
+  print(lignes_dupliquees)
+} else {
+  cat("Il n'y a aucune ligne entièrement dupliquée dans le dataframe.")
+}
+
+```
+
+## 2 : Vérification des doublons dans les colonnes
+
+```{r}
+# Initialisation d'une liste pour stocker les colonnes dupliquées
+colonnes_dupliquees <- list()
+
+# Boucle pour vérifier chaque colonne
+for (col in colnames(dataframe)) {
+  
+  # Vérification si toutes les valeurs dans la colonne sont identiques
+  if (length(unique(dataframe[[col]])) == 1) {
+    colonnes_dupliquees[[col]] <- dataframe[[col]]
+  }
+}
+
+# Affichage du résultat
+if (length(colonnes_dupliquees) > 0) {
+  cat("Les colonnes avec des valeurs entièrement dupliquées sont :\n")
+  print(names(colonnes_dupliquees))
+  
+  # Afficher les valeurs des colonnes dupliquées
+  for (col in names(colonnes_dupliquees)) {
+    cat(paste("\nToutes les valeurs dans la colonne", col, "sont identiques :\n"))
+    print(unique(colonnes_dupliquees[[col]]))
+  }
+} else {
+  cat("Aucune colonne ne contient de valeurs entièrement dupliquées dans le dataframe.")
+}
+```
+
+## 3 : Vérification des occurences uniques dans chaque colonne du dataframe
+
+```{r}
+# Boucle pour afficher le nombre d'occurrences uniques dans chaque colonne
+for (col in colnames(dataframe)) {
+  
+  # Calcul du nombre de valeurs uniques dans la colonne
+  n_unique <- length(unique(dataframe[[col]]))
+  
+  # Affichage du résultat
+  cat("La colonne", col, "contient", n_unique, "valeurs uniques.\n")
+}
+```
+# ===================================================================
+#  ETAPE 6 : MENU INTERACTIF
+# ===================================================================
+
+```{r}
+# Création d'un menu pour sélectionner la colonne
+col_names <- colnames(dataframe)
+
+# Afficher un menu pour choisir la colonne
+col_choice <- menu(col_names, title = "Sélectionnez une colonne pour voir les occurrences uniques :")
+
+# Vérification si l'utilisateur a fait un choix valide
+if (col_choice > 0) {
+  
+  # Récupération du nom de la colonne choisie
+  col_selected <- col_names[col_choice]
+  
+  # Calcul du nombre d'occurrences uniques pour la colonne choisie
+  occurrences_uniques <- table(dataframe[[col_selected]])
+  
+  # Affichage des résultats
+  cat("Les occurrences uniques pour la colonne", col_selected, "sont :\n")
+  print(occurrences_uniques)
+  
+} else {
+  cat("Aucune colonne sélectionnée.")
+}
+
+```
+
+# ===================================================================
+# ETAPE 6 : RENOMMAGE ET SUPPRESSION DES COLONNES 
+# ===================================================================
+
+## 1 : Renommage des colonnes spécifiques ! 
+
+```{r}
+dataframe <- dataframe %>% 
+  rename(
+    nouveau_nom_colonne_A = 'Colonne A',
+    nouveau_nom_colonne_A = 'Colonne B',
+  )
+```
+
+## 2 : Filtre du dataframe sur les colonnes que l'on veut conserver
+
+```{r}
+# Sélection des colonnes souhaitées
+dataframe <- dataframe %>%
+  select('Colonne A', 
+         'Colonne C', 
+         'Colonne D',
+       
+         )
+# Vérification du dataframe après sélection
+glimpse(dataframe)
+```
+
+# ===================================================================
+# Export du dataframe filtré sur les enregistrements 
+# ===================================================================
+
+```{r}
+# 1 Chemin vers le serveur 
+chemin_fichier <- "Fichier_audite.csv"
+
+
+write.csv(dataframe, chemin_fichier, row.names = FALSE)
+
+```
+
